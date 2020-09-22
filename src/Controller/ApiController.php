@@ -7,10 +7,12 @@ namespace Seegurke13\ApiBundle\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ObjectRepository;
+use Seegurke13\ApiBundle\Model\ValidationErrorResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ApiController
 {
@@ -23,11 +25,19 @@ class ApiController
      * @var SerializerInterface
      */
     private SerializerInterface $serializer;
+    /**
+     * @var ValidatorInterface
+     */
+    private ValidatorInterface $validator;
 
-    public function __construct(EntityManagerInterface $entityManager, SerializerInterface $serializer)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        SerializerInterface $serializer,
+        ValidatorInterface $validator
+    ) {
         $this->entityManager = $entityManager;
         $this->serializer = $serializer;
+        $this->validator = $validator;
     }
 
     public function get(string $classname, int $id)
@@ -71,6 +81,12 @@ class ApiController
     public function create(Request $request, string $classname)
     {
         $entity = $this->serializer->deserialize($request->getContent(), $classname, 'json');
+
+        $violations = $this->validator->validate($entity);
+        if ($violations->count() > 0) {
+            return new ValidationErrorResponse($violations);
+        }
+
         $this->entityManager->persist($entity);
         $this->entityManager->flush();
 
@@ -89,6 +105,12 @@ class ApiController
     {
         $entity = $this->entityManager->getRepository($classname)->find($id);
         $this->serializer->deserialize($request->getContent(), $classname, 'json', [AbstractNormalizer::OBJECT_TO_POPULATE => $entity]);
+
+        $violations = $this->validator->validate($entity);
+        if ($violations->count() > 0) {
+            return new ValidationErrorResponse($violations);
+        }
+
         $this->entityManager->flush();
 
         return new Response();
