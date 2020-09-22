@@ -4,9 +4,10 @@
 namespace Seegurke13\ApiBundle\Service;
 
 
-use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\ORM\EntityManagerInterface;
+use ReflectionClass;
+use ReflectionException;
 use Seegurke13\ApiBundle\Annotation\Api;
 use Seegurke13\ApiBundle\Controller\ApiController;
 use Symfony\Bundle\FrameworkBundle\Routing\RouteLoaderInterface;
@@ -15,10 +16,18 @@ use Symfony\Component\Routing\RouteCollection;
 
 class RouteLoader implements RouteLoaderInterface
 {
+    const SEARCH_ACTION = 'search';
+    const GET_ACTION = 'get';
+    const UPDATE_ACTION = 'update';
+    const LIST_ACTION = 'list';
+    const CREATE_ACTION = 'create';
+    const DELETE_ACTION = 'delete';
+
     /**
      * @var EntityManagerInterface
      */
     private EntityManagerInterface $entityManager;
+
 
     /**
      * @var Reader
@@ -39,9 +48,12 @@ class RouteLoader implements RouteLoaderInterface
 
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         foreach ($metadata as $data) {
-            $annotation = $this->annotationReader->getClassAnnotation(new \ReflectionClass($data->getName()), Api::class);
-            if ($annotation) {
-                $routes->addCollection($this->getRoutes($data->getName(), $data->namespace));
+            try {
+                $annotation = $this->annotationReader->getClassAnnotation(new ReflectionClass($data->getName()), Api::class);
+                if ($annotation) {
+                    $routes->addCollection($this->getRoutes($data->getName(), $data->namespace));
+                }
+            } catch (ReflectionException $e) {
             }
         }
 
@@ -54,43 +66,50 @@ class RouteLoader implements RouteLoaderInterface
         $prefix = '/'.$name;
         $collection = new RouteCollection();
 
+        $routeName = 'api_'.$name;
+
 
         $searchRoute = new Route($prefix.'/search', [
-            '_controller' => ApiController::class . '::search',
+            '_controller' => $this->getController(self::SEARCH_ACTION),
             'classname' => $class,
         ], [], [], '', [], ['GET']);
-        $collection->add('api_'.$name.'_search', $searchRoute);
+        $collection->add($routeName. '_search', $searchRoute);
 
         $routeGet = new Route($prefix.'/{id}', [
-            '_controller' => ApiController::class . '::get',
+            '_controller' => $this->getController(self::GET_ACTION),
             'classname' => $class,
         ], [], [], '', [], ['GET']);
-        $collection->add('api_'.$name.'_get', $routeGet);
+        $collection->add($routeName. '_get', $routeGet);
 
         $routeCreate = new Route($prefix.'/', [
-            '_controller' => ApiController::class . '::create',
+            '_controller' => $this->getController(self::CREATE_ACTION),
             'classname' => $class,
         ], [], [], '', [], ['POST']);
-        $collection->add('api_'.$name.'_create', $routeCreate);
+        $collection->add($routeName. '_create', $routeCreate);
 
         $routeList = new Route($prefix.'/', [
-            '_controller' => ApiController::class .  '::list',
+            '_controller' => $this->getController(self::LIST_ACTION),
             'classname' => $class
         ], [], [], '', [], ['GET']);
-        $collection->add('api_'.$name.'_list', $routeList);
+        $collection->add($routeName. '_list', $routeList);
 
         $routeDelete = new Route($prefix.'/{id}', [
-            '_controller' => ApiController::class . '::delete',
+            '_controller' => $this->getController(self::DELETE_ACTION),
             'classname' => 'test'
         ], [], [], '', [], ['DELETE']);
-        $collection->add('api_'.$name.'_delete', $routeDelete);
+        $collection->add($routeName. '_delete', $routeDelete);
 
         $routeUpdate = new Route($prefix.'/{id}', [
-            '_controller' => ApiController::class . '::update',
+            '_controller' => $this->getController(self::UPDATE_ACTION),
             'classname' => $class,
         ], [], [], '', [], ['PUT']);
-        $collection->add('api_'.$name.'_update', $routeUpdate);
+        $collection->add($routeName. '_update', $routeUpdate);
 
         return $collection;
+    }
+
+    private function getController(string $action)
+    {
+        return sprintf('%s::%s', ApiController::class, $action);
     }
 }
