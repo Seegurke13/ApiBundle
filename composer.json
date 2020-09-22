@@ -1,0 +1,11 @@
+{
+    "name": "seegurke13/api_bundle",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Jerome Trope",
+            "email": "jerometrope@gmail.com"
+        }
+    ],
+    "require": {}
+}
