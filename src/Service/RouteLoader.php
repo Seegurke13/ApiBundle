@@ -4,7 +4,10 @@
 namespace Seegurke13\ApiBundle\Service;
 
 
+use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\Common\Annotations\Reader;
 use Doctrine\ORM\EntityManagerInterface;
+use Seegurke13\ApiBundle\Annotation\Api;
 use Seegurke13\ApiBundle\Controller\ApiController;
 use Symfony\Bundle\FrameworkBundle\Routing\RouteLoaderInterface;
 use Symfony\Component\Routing\Route;
@@ -17,9 +20,17 @@ class RouteLoader implements RouteLoaderInterface
      */
     private EntityManagerInterface $entityManager;
 
-    public function __construct(EntityManagerInterface $entityManager)
-    {
+    /**
+     * @var Reader
+     */
+    private Reader $annotationReader;
+
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        Reader $annotationReader
+    ) {
         $this->entityManager = $entityManager;
+        $this->annotationReader = $annotationReader;
     }
 
     public function __invoke(): RouteCollection
@@ -28,7 +39,10 @@ class RouteLoader implements RouteLoaderInterface
 
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         foreach ($metadata as $data) {
-            $routes->addCollection($this->getRoutes($data->getName(), $data->namespace));
+            $annotation = $this->annotationReader->getClassAnnotation(new \ReflectionClass($data->getName()), Api::class);
+            if ($annotation) {
+                $routes->addCollection($this->getRoutes($data->getName(), $data->namespace));
+            }
         }
 
         return $routes;
