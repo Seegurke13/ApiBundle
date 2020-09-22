@@ -104,7 +104,9 @@ class ApiController
     public function update(Request $request, string $classname, int $id)
     {
         $entity = $this->entityManager->getRepository($classname)->find($id);
-        $this->serializer->deserialize($request->getContent(), $classname, 'json', [AbstractNormalizer::OBJECT_TO_POPULATE => $entity]);
+        $this->serializer->deserialize($request->getContent(), $classname, 'json', [
+            AbstractNormalizer::OBJECT_TO_POPULATE => $entity
+        ]);
 
         $violations = $this->validator->validate($entity);
         if ($violations->count() > 0) {
